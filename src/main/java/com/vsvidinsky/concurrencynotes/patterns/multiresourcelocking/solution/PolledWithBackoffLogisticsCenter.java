@@ -1,22 +1,26 @@
-package com.vsvidinsky.patterns.multiresourcelocking.solution;
+package com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.solution;
 
-import com.vsvidinsky.patterns.multiresourcelocking.model.Item;
-import com.vsvidinsky.patterns.multiresourcelocking.LogisticsCenter;
-import com.vsvidinsky.patterns.multiresourcelocking.model.TransferResult;
-import com.vsvidinsky.patterns.multiresourcelocking.Warehouse;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.model.Item;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.LogisticsCenter;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.model.TransferResult;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.Warehouse;
+
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.model.BackoffConfig;
 
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 public class PolledWithBackoffLogisticsCenter implements LogisticsCenter {
-    private static final long OPERATION_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(5);
-    private static final long INITIAL_BACKOFF_MS = 1;
-    private static final long MAX_BACKOFF_MS = 9;
+    private final BackoffConfig config;
+
+    public PolledWithBackoffLogisticsCenter(BackoffConfig config) {
+        this.config = config;
+    }
 
     @Override
     public TransferResult transfer(Warehouse source, Warehouse destination, Item item) {
-        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(OPERATION_TIMEOUT_MS);
-        long backoff = INITIAL_BACKOFF_MS;
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(config.timeoutMs());
+        long backoff = config.initialBackoffMs();
 
         while (System.nanoTime() < deadline) {
             if (source.getLock().tryLock()) {
@@ -38,12 +42,12 @@ public class PolledWithBackoffLogisticsCenter implements LogisticsCenter {
                 }
             }
             try {
-                Thread.sleep(ThreadLocalRandom.current().nextLong(INITIAL_BACKOFF_MS, backoff + 1));
+                Thread.sleep(ThreadLocalRandom.current().nextLong(config.initialBackoffMs(), backoff + 1));
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return TransferResult.INTERRUPTED;
             }
-            backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
+            backoff = Math.min(backoff * 2, config.maxBackoffMs());
         }
 
         return TransferResult.TIMEOUT;

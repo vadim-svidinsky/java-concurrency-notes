@@ -1,19 +1,19 @@
-package com.vsvidinsky.patterns.multiresourcelocking.benchmark;
+package com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.benchmark;
 
-import com.vsvidinsky.patterns.multiresourcelocking.model.Item;
-import com.vsvidinsky.patterns.multiresourcelocking.Warehouse;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.model.Item;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.Warehouse;
 
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class BenchmarkWarehouse implements Warehouse {
-    private static final long SIMULATION_WORK_TIME_MS = 5;
-
     private final String id;
+    private final long simulationWorkTimeMs;
     private final Lock lock = new ReentrantLock();
 
-    public BenchmarkWarehouse(String id) {
+    public BenchmarkWarehouse(String id, long simulationWorkTimeMs) {
         this.id = id;
+        this.simulationWorkTimeMs = simulationWorkTimeMs;
     }
 
     @Override
@@ -44,7 +44,7 @@ public class BenchmarkWarehouse implements Warehouse {
 
     private void simulateWork() {
         try {
-            Thread.sleep(SIMULATION_WORK_TIME_MS);
+            Thread.sleep(simulationWorkTimeMs);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

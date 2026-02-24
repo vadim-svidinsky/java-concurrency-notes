@@ -1,11 +1,13 @@
-package com.vsvidinsky.patterns.multiresourcelocking.benchmark;
+package com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.benchmark;
 
-import com.vsvidinsky.patterns.multiresourcelocking.LogisticsCenter;
-import com.vsvidinsky.patterns.multiresourcelocking.Warehouse;
-import com.vsvidinsky.patterns.multiresourcelocking.model.Item;
-import com.vsvidinsky.patterns.multiresourcelocking.model.TransferResult;
-import com.vsvidinsky.patterns.multiresourcelocking.solution.LockOrderingLogisticsCenter;
-import com.vsvidinsky.patterns.multiresourcelocking.solution.PolledWithBackoffLogisticsCenter;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.LogisticsCenter;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.Warehouse;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.model.BackoffConfig;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.model.Item;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.model.TransferResult;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.solution.LockOrderingLogisticsCenter;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.solution.OrderedPolledWithBackoffLogisticsCenter;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.solution.PolledWithBackoffLogisticsCenter;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
@@ -26,20 +28,30 @@ public class TransferBenchmark {
     // Shared between all threads: warehouses and the logistics center implementations
     @State(Scope.Benchmark)
     public static class BenchmarkState {
+        // Time spent doing actual warehouse work (add/remove) inside the critical section
+        private static final long SIMULATION_WORK_TIME_MS = 5;
+        // Max time a transfer waits for locks before returning TIMEOUT
+        private static final long OPERATION_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(5);
+        // Starting backoff delay when tryLock fails
+        private static final long INITIAL_BACKOFF_MS = 1;
+        // Upper cap for exponential backoff
+        private static final long MAX_BACKOFF_MS = 9;
 
         @Param({"4", "8", "16", "32", "64"})
         public int warehouseCount;
 
         public Warehouse[] warehouses;
         public final Item item = new Item("benchmark-item");
+        public final BackoffConfig backoffConfig = new BackoffConfig(OPERATION_TIMEOUT_MS, INITIAL_BACKOFF_MS, MAX_BACKOFF_MS);
         public final LogisticsCenter lockOrdering = new LockOrderingLogisticsCenter();
-        public final LogisticsCenter polledWithBackoff = new PolledWithBackoffLogisticsCenter();
+        public final LogisticsCenter polledWithBackoff = new PolledWithBackoffLogisticsCenter(backoffConfig);
+        public final LogisticsCenter orderedPolledWithBackoff = new OrderedPolledWithBackoffLogisticsCenter(backoffConfig);
 
         @Setup
         public void setup() {
             warehouses = new Warehouse[warehouseCount];
             for (int i = 0; i < warehouseCount; i++) {
-                warehouses[i] = new BenchmarkWarehouse(String.valueOf((char) ('A' + i)));
+                warehouses[i] = new BenchmarkWarehouse(String.valueOf((char) ('A' + i)), SIMULATION_WORK_TIME_MS);
             }
         }
     }
@@ -75,6 +87,16 @@ public class TransferBenchmark {
     @Benchmark
     public TransferResult polledWithBackoffHot(BenchmarkState state) {
         return transferHot(state.polledWithBackoff, state);
+    }
+
+    @Benchmark
+    public TransferResult orderedPolledWithBackoff(BenchmarkState state, ThreadState thread) {
+        return transfer(state.orderedPolledWithBackoff, state, thread);
+    }
+
+    @Benchmark
+    public TransferResult orderedPolledWithBackoffHot(BenchmarkState state) {
+        return transferHot(state.orderedPolledWithBackoff, state);
     }
 
     private static TransferResult transfer(LogisticsCenter center, BenchmarkState state, ThreadState thread) {

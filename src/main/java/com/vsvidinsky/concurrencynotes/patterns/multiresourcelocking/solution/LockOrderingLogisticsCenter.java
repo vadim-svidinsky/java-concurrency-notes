@@ -1,9 +1,9 @@
-package com.vsvidinsky.patterns.multiresourcelocking.solution;
+package com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.solution;
 
-import com.vsvidinsky.patterns.multiresourcelocking.model.Item;
-import com.vsvidinsky.patterns.multiresourcelocking.LogisticsCenter;
-import com.vsvidinsky.patterns.multiresourcelocking.model.TransferResult;
-import com.vsvidinsky.patterns.multiresourcelocking.Warehouse;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.model.Item;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.LogisticsCenter;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.model.TransferResult;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.Warehouse;
 
 import java.util.concurrent.locks.Lock;
 
@@ -11,12 +11,9 @@ public class LockOrderingLogisticsCenter implements LogisticsCenter {
 
     @Override
     public TransferResult transfer(Warehouse source, Warehouse destination, Item item) {
-        Lock firstLock = source.getId().compareTo(destination.getId()) < 0
-                ? source.getLock()
-                : destination.getLock();
-        Lock secondLock = source.getId().compareTo(destination.getId()) < 0
-                ? destination.getLock()
-                : source.getLock();
+        boolean sourceFirst = source.getId().compareTo(destination.getId()) < 0;
+        Lock firstLock = sourceFirst ? source.getLock() : destination.getLock();
+        Lock secondLock = sourceFirst ? destination.getLock() : source.getLock();
 
         firstLock.lock();
         try {

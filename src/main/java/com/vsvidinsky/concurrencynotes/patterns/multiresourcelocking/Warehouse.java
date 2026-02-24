@@ -1,6 +1,6 @@
-package com.vsvidinsky.patterns.multiresourcelocking;
+package com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking;
 
-import com.vsvidinsky.patterns.multiresourcelocking.model.Item;
+import com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.model.Item;
 
 import java.util.concurrent.locks.Lock;
 

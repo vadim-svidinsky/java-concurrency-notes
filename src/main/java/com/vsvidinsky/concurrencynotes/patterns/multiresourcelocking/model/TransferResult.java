@@ -1,4 +1,4 @@
-package com.vsvidinsky.patterns.multiresourcelocking.model;
+package com.vsvidinsky.concurrencynotes.patterns.multiresourcelocking.model;
 
 public enum TransferResult {
     SUCCESS,
